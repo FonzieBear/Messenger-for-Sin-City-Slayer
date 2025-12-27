@@ -1,0 +1,341 @@
+import random
+import datetime
+import sys
+import json
+import os
+import base64
+from itertools import cycle
+
+# ANSI Color Codes for Terminal Output
+COLORS = {
+    'RESET': '\033[0m',
+    'RED': '\033[31m',      # Burgundy, Scarlet
+    'GREEN': '\033[32m',    # Jade
+    'YELLOW': '\033[33m',   # Golden, Olive
+    'BLUE': '\033[34m',     # Cerulean, Indigo
+    'MAGENTA': '\033[35m',  # Plum
+    'CYAN': '\033[36m',     # Cyan, Mint
+    'WHITE': '\033[37m',    # White
+    'GREY': '\033[90m',     # Pewter, Gray, Black (for visibility)
+    'BRIGHT_RED': '\033[91m', # Coral, Peach
+    'BRIGHT_YELLOW': '\033[93m' # Lemon
+}
+
+# Mapping specific users to colors based on their names
+USER_COLORS = {
+    "Adair Burgundy": COLORS['RED'],
+    "Piper White": COLORS['WHITE'],
+    "Darby Cerulean": COLORS['BLUE'],
+    "Parson Golden": COLORS['YELLOW'],
+    "Alex Jade": COLORS['GREEN'],
+    "Cricket Pewter": COLORS['GREY'],
+    "Greenlee Black": COLORS['GREY'], # Using Grey so it is visible on black screens
+    "Winter Olive": COLORS['YELLOW'],
+    "Rigny Cyan": COLORS['CYAN'],
+    "Jude Plum": COLORS['MAGENTA'],
+    "Story Indigo": COLORS['BLUE'],
+    "Waverly Scarlet": COLORS['RED'],
+    "Shan Lemon": COLORS['BRIGHT_YELLOW'],
+    "Ren Peach": COLORS['BRIGHT_RED'],
+    "Blue Coral": COLORS['BRIGHT_RED'],
+    "Lee Mint": COLORS['CYAN'],
+    "Dracen Gray": COLORS['GREY'],
+    "Whitney Whatley": COLORS['WHITE']
+}
+
+# The hardcoded order of users (1-18)
+USER_ORDER = [
+    "Adair Burgundy", "Piper White", "Darby Cerulean", "Parson Golden",
+    "Alex Jade", "Cricket Pewter", "Greenlee Black", "Winter Olive",
+    "Rigny Cyan", "Jude Plum", "Story Indigo", "Waverly Scarlet",
+    "Shan Lemon", "Ren Peach", "Blue Coral", "Lee Mint",
+    "Dracen Gray", "Whitney Whatley"
+]
+
+class SecureMessagingSystem:
+    def __init__(self):
+        self.users = {}
+        self.current_user = None
+        self.filename = "messaging_data_secure.json"
+        
+        self._clear_screen()
+        self.master_pin = input("🔐 Enter MASTER PIN to unlock/encrypt the system: ").strip()
+        
+        if not self.master_pin:
+            print("❌ Master PIN cannot be empty. Exiting.")
+            sys.exit()
+
+        if os.path.exists(self.filename):
+            success = self.load_data()
+            if not success:
+                print("❌ Failed to decrypt. Wrong Master PIN or corrupted file.")
+                sys.exit()
+        else:
+            print(f"🆕 Creating new system encrypted with Master PIN.")
+            self._initialize_users()
+
+    def _clear_screen(self):
+        os.system('cls' if os.name == 'nt' else 'clear')
+
+    def _xor_cipher(self, text, key):
+        return ''.join(chr(ord(c) ^ ord(k)) for c, k in zip(text, cycle(key)))
+
+    def _colorize(self, text, color_code):
+        """Helper to wrap text in color codes."""
+        return f"{color_code}{text}{COLORS['RESET']}"
+
+    def get_user_color(self, username):
+        """Returns the color code for a specific user."""
+        return USER_COLORS.get(username, COLORS['WHITE'])
+
+    def save_data(self):
+        try:
+            json_str = json.dumps(self.users)
+            encrypted_str = self._xor_cipher(json_str, self.master_pin)
+            b64_encoded = base64.b64encode(encrypted_str.encode()).decode()
+
+            with open(self.filename, 'w') as f:
+                f.write(b64_encoded)
+        except Exception as e:
+            print(f"Error saving data: {e}")
+
+    def load_data(self):
+        try:
+            with open(self.filename, 'r') as f:
+                file_content = f.read()
+
+            encrypted_str = base64.b64decode(file_content).decode()
+            json_str = self._xor_cipher(encrypted_str, self.master_pin)
+            self.users = json.loads(json_str)
+            
+            # Verify all hardcoded users exist in loaded data (in case names changed)
+            # If not, add them (preserving old data).
+            for name in USER_ORDER:
+                if name not in self.users:
+                    self.users[name] = {'pin': f"{random.randint(0, 9999):04d}", 'inbox': []}
+            
+            print("✅ Access Granted.")
+            return True
+
+        except (json.JSONDecodeError, UnicodeDecodeError, Exception):
+            return False
+
+    def _initialize_users(self):
+        print("--- FIRST RUN: GENERATING PINS ---")
+        used_pins = set()
+        
+        for name in USER_ORDER:
+            while True:
+                pin = f"{random.randint(0, 9999):04d}"
+                if pin not in used_pins:
+                    used_pins.add(pin)
+                    break
+            
+            self.users[name] = {
+                'pin': pin,
+                'inbox': []
+            }
+            
+            # Print with color
+            color = self.get_user_color(name)
+            print(f"Generated {self._colorize(name, color)}: {pin}")
+        
+        self.save_data()
+        input("\nInitial setup complete. Write these down! Press Enter to continue...")
+        self._clear_screen()
+
+    def print_directory(self, show_pins=False):
+        title = "ADMIN USER DIRECTORY (WITH PINS)" if show_pins else "USER DIRECTORY"
+        print(f"\n--- {title} ---")
+        
+        if show_pins:
+            print(f"{'#':<3} | {'USER':<25} | {'PIN':<6}")
+            print("-" * 40)
+            for idx, name in enumerate(USER_ORDER, 1):
+                color = self.get_user_color(name)
+                pin = self.users[name]['pin']
+                print(f"{idx:<3} | {self._colorize(name, color):<35} | {pin:<6}")
+        else:
+            print(f"{'#':<3} | {'USER':<25}")
+            print("-" * 30)
+            for idx, name in enumerate(USER_ORDER, 1):
+                color = self.get_user_color(name)
+                print(f"{idx:<3} | {self._colorize(name, color):<35}")
+            
+        print("-" * 30)
+
+    def login(self):
+        print("\n--- LOGIN ---")
+        pin = input("Enter your PIN (or Master PIN): ").strip()
+        
+        # 1. Admin Check
+        if pin == self.master_pin:
+            self._clear_screen()
+            self.current_user = "ADMIN"
+            print(f"✅ {COLORS['RED']}ADMIN ACCESS GRANTED.{COLORS['RESET']}")
+            return
+
+        # 2. User Check
+        found_user = None
+        for user, data in self.users.items():
+            if data['pin'] == pin:
+                found_user = user
+                break
+        
+        if found_user:
+            self.current_user = found_user
+            self._clear_screen() # Clear history
+            
+            # Greet with color
+            color = self.get_user_color(found_user)
+            print(f"✅ Login successful! Welcome, {self._colorize(found_user, color)}.")
+        else:
+            print("❌ Invalid PIN.")
+
+    def logout(self):
+        self.current_user = None
+        self._clear_screen()
+        print("Logged out successfully.")
+
+    def send_message(self):
+        self.print_directory(show_pins=False)
+
+        print("\n--- SEND MESSAGE ---")
+        try:
+            choice = input("Enter Recipient Number (1-18): ").strip()
+            idx = int(choice) - 1
+            if idx < 0 or idx >= len(USER_ORDER):
+                raise ValueError
+            recipient_name = USER_ORDER[idx]
+        except ValueError:
+            print("❌ Invalid number.")
+            return
+
+        # Check self-send
+        if self.current_user != "ADMIN" and recipient_name == self.current_user:
+            print("⚠️ You cannot send messages to yourself.")
+            return
+
+        message_text = input(f"Message for {self._colorize(recipient_name, self.get_user_color(recipient_name))}: ").strip()
+        if not message_text:
+            print("⚠️ Cannot send an empty message.")
+            return
+
+        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+        
+        # Determine sender display name (colored)
+        if self.current_user == "ADMIN":
+            sender_display = f"{COLORS['RED']}ADMIN{COLORS['RESET']}"
+        else:
+            sender_display = self._colorize(self.current_user, self.get_user_color(self.current_user))
+
+        formatted_message = f"[{timestamp}] From {sender_display}: {message_text}"
+        
+        self.users[recipient_name]['inbox'].append(formatted_message)
+        self.save_data() 
+        print(f"✅ Message sent to {recipient_name}.")
+
+    def broadcast_message(self):
+        print("\n--- BROADCAST MESSAGE ---")
+        message_text = input("Enter message for ALL users: ").strip()
+        if not message_text:
+            return
+
+        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+        formatted_message = f"[{timestamp}] *** {COLORS['RED']}BROADCAST FROM ADMIN{COLORS['RESET']} ***: {message_text}"
+
+        for user in self.users:
+            self.users[user]['inbox'].append(formatted_message)
+        
+        self.save_data()
+        print(f"✅ Broadcast sent to {len(self.users)} users.")
+
+    def view_inbox(self):
+        color = self.get_user_color(self.current_user)
+        print(f"\n--- INBOX FOR {self._colorize(self.current_user, color)} ---")
+        inbox = self.users[self.current_user]['inbox']
+
+        if not inbox:
+            print("(No messages)")
+        else:
+            for msg in inbox:
+                print(msg)
+        input("\nPress Enter to return to menu...")
+
+    def admin_view_all_inboxes(self):
+        print(f"\n--- GLOBAL INBOX VIEWER ---")
+        
+        for name in USER_ORDER:
+            inbox = self.users[name]['inbox']
+            color = self.get_user_color(name)
+            print(f"\n[{self._colorize(name, color)}] ({len(inbox)} messages)")
+            if not inbox:
+                print("  (Empty)")
+            else:
+                for msg in inbox:
+                    print(f"  {msg}")
+        
+        input("\nPress Enter to return to menu...")
+
+    def run(self):
+        while True:
+            if self.current_user is None:
+                print("\n=== SECURE MESSENGER ===")
+                print("1. Login (Enter PIN)")
+                print("2. View Directory")
+                print("3. Exit")
+                choice = input("Select option: ").strip()
+
+                if choice == '1':
+                    self.login()
+                elif choice == '2':
+                    self.print_directory(show_pins=False)
+                elif choice == '3':
+                    sys.exit()
+                else:
+                    print("Invalid option.")
+
+            elif self.current_user == "ADMIN":
+                print(f"\n=== {COLORS['RED']}ADMIN DASHBOARD{COLORS['RESET']} ===")
+                print("1. View User Directory (REVEAL PINS)")
+                print("2. View ALL Inboxes")
+                print("3. Send Message to User")
+                print("4. Broadcast Message to ALL")
+                print("5. Logout")
+                choice = input("Select option: ").strip()
+
+                if choice == '1':
+                    self.print_directory(show_pins=True)
+                    input("\nPress Enter to return...")
+                elif choice == '2':
+                    self.admin_view_all_inboxes()
+                elif choice == '3':
+                    self.send_message()
+                elif choice == '4':
+                    self.broadcast_message()
+                elif choice == '5':
+                    self.logout()
+                else:
+                    print("Invalid option.")
+
+            else:
+                user_color = self.get_user_color(self.current_user)
+                print(f"\n=== DASHBOARD: {self._colorize(self.current_user, user_color)} ===")
+                print("1. Read Inbox")
+                print("2. Send Message")
+                print("3. Logout")
+                choice = input("Select option: ").strip()
+
+                if choice == '1':
+                    self.view_inbox()
+                elif choice == '2':
+                    self.send_message()
+                elif choice == '3':
+                    self.logout()
+                else:
+                    print("Invalid option.")
+
+if __name__ == "__main__":
+    app = SecureMessagingSystem()
+    app.run()
+    
