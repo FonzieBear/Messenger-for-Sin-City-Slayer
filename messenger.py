@@ -317,15 +317,13 @@ class SecureMessagingSystem:
                 print("\n=== SECURE MESSENGER ===")
                 print("1. Login")
                 print("2. View Directory")
-                print("3. Exit")
+                # EXIT OPTION REMOVED
                 choice = input("Select option: ").strip()
 
                 if choice == '1':
                     self.login()
                 elif choice == '2':
                     self.print_directory(show_pins=False)
-                elif choice == '3':
-                    sys.exit()
                 else:
                     print("Invalid option.")
 
