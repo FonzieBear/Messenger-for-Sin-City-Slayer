@@ -4,6 +4,7 @@ import sys
 import json
 import os
 import base64
+import getpass
 from itertools import cycle
 
 # ANSI Color Codes for Terminal Output
@@ -16,12 +17,12 @@ COLORS = {
     'MAGENTA': '\033[35m',  # Plum
     'CYAN': '\033[36m',     # Cyan, Mint
     'WHITE': '\033[37m',    # White
-    'GREY': '\033[90m',     # Pewter, Gray, Black (for visibility)
+    'GREY': '\033[90m',     # Pewter, Gray, Black
     'BRIGHT_RED': '\033[91m', # Coral, Peach
     'BRIGHT_YELLOW': '\033[93m' # Lemon
 }
 
-# Mapping specific users to colors based on their names
+# Mapping specific users to colors
 USER_COLORS = {
     "Adair Burgundy": COLORS['RED'],
     "Piper White": COLORS['WHITE'],
@@ -29,7 +30,7 @@ USER_COLORS = {
     "Parson Golden": COLORS['YELLOW'],
     "Alex Jade": COLORS['GREEN'],
     "Cricket Pewter": COLORS['GREY'],
-    "Greenlee Black": COLORS['GREY'], # Using Grey so it is visible on black screens
+    "Greenlee Black": COLORS['GREY'], 
     "Winter Olive": COLORS['YELLOW'],
     "Rigny Cyan": COLORS['CYAN'],
     "Jude Plum": COLORS['MAGENTA'],
@@ -43,7 +44,6 @@ USER_COLORS = {
     "Whitney Whatley": COLORS['WHITE']
 }
 
-# The hardcoded order of users (1-18)
 USER_ORDER = [
     "Adair Burgundy", "Piper White", "Darby Cerulean", "Parson Golden",
     "Alex Jade", "Cricket Pewter", "Greenlee Black", "Winter Olive",
@@ -59,7 +59,16 @@ class SecureMessagingSystem:
         self.filename = "messaging_data_secure.json"
         
         self._clear_screen()
-        self.master_pin = input("🔐 Enter MASTER PIN to unlock/encrypt the system: ").strip()
+        
+        # Use getpass for secure, invisible input
+        print("🔐 SYSTEM LOCKED")
+        try:
+            self.master_pin = getpass.getpass("Enter MASTER PIN to unlock (Typing will be invisible): ").strip()
+        except Exception:
+            self.master_pin = input("Enter MASTER PIN (Warning: Visible): ").strip()
+
+        # IMMEDIATELY clear screen
+        self._clear_screen()
         
         if not self.master_pin:
             print("❌ Master PIN cannot be empty. Exiting.")
@@ -81,11 +90,9 @@ class SecureMessagingSystem:
         return ''.join(chr(ord(c) ^ ord(k)) for c, k in zip(text, cycle(key)))
 
     def _colorize(self, text, color_code):
-        """Helper to wrap text in color codes."""
         return f"{color_code}{text}{COLORS['RESET']}"
 
     def get_user_color(self, username):
-        """Returns the color code for a specific user."""
         return USER_COLORS.get(username, COLORS['WHITE'])
 
     def save_data(self):
@@ -108,8 +115,7 @@ class SecureMessagingSystem:
             json_str = self._xor_cipher(encrypted_str, self.master_pin)
             self.users = json.loads(json_str)
             
-            # Verify all hardcoded users exist in loaded data (in case names changed)
-            # If not, add them (preserving old data).
+            # Ensure hardcoded users exist
             for name in USER_ORDER:
                 if name not in self.users:
                     self.users[name] = {'pin': f"{random.randint(0, 9999):04d}", 'inbox': []}
@@ -136,7 +142,6 @@ class SecureMessagingSystem:
                 'inbox': []
             }
             
-            # Print with color
             color = self.get_user_color(name)
             print(f"Generated {self._colorize(name, color)}: {pin}")
         
@@ -166,16 +171,17 @@ class SecureMessagingSystem:
 
     def login(self):
         print("\n--- LOGIN ---")
-        pin = input("Enter your PIN (or Master PIN): ").strip()
+        try:
+            pin = getpass.getpass("Enter your PIN (Typing will be invisible): ").strip()
+        except Exception:
+            pin = input("Enter your PIN: ").strip()
         
-        # 1. Admin Check
         if pin == self.master_pin:
             self._clear_screen()
             self.current_user = "ADMIN"
             print(f"✅ {COLORS['RED']}ADMIN ACCESS GRANTED.{COLORS['RESET']}")
             return
 
-        # 2. User Check
         found_user = None
         for user, data in self.users.items():
             if data['pin'] == pin:
@@ -184,9 +190,7 @@ class SecureMessagingSystem:
         
         if found_user:
             self.current_user = found_user
-            self._clear_screen() # Clear history
-            
-            # Greet with color
+            self._clear_screen()
             color = self.get_user_color(found_user)
             print(f"✅ Login successful! Welcome, {self._colorize(found_user, color)}.")
         else:
@@ -211,7 +215,6 @@ class SecureMessagingSystem:
             print("❌ Invalid number.")
             return
 
-        # Check self-send
         if self.current_user != "ADMIN" and recipient_name == self.current_user:
             print("⚠️ You cannot send messages to yourself.")
             return
@@ -223,7 +226,6 @@ class SecureMessagingSystem:
 
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         
-        # Determine sender display name (colored)
         if self.current_user == "ADMIN":
             sender_display = f"{COLORS['RED']}ADMIN{COLORS['RESET']}"
         else:
@@ -249,6 +251,38 @@ class SecureMessagingSystem:
         
         self.save_data()
         print(f"✅ Broadcast sent to {len(self.users)} users.")
+
+    def clear_single_inbox(self):
+        self.print_directory(show_pins=False)
+        print("\n--- CLEAR USER INBOX ---")
+        try:
+            choice = input("Enter User Number to wipe (1-18): ").strip()
+            idx = int(choice) - 1
+            if idx < 0 or idx >= len(USER_ORDER):
+                raise ValueError
+            target_user = USER_ORDER[idx]
+        except ValueError:
+            print("❌ Invalid number.")
+            return
+
+        confirm = input(f"Are you sure you want to delete ALL messages for {target_user}? (y/n): ").lower()
+        if confirm == 'y':
+            self.users[target_user]['inbox'] = []
+            self.save_data()
+            print(f"✅ Inbox cleared for {target_user}.")
+        else:
+            print("❌ Action cancelled.")
+
+    def clear_all_inboxes(self):
+        print(f"\n--- {COLORS['RED']}DANGER: CLEAR ALL INBOXES{COLORS['RESET']} ---")
+        confirm = input("Are you sure you want to delete EVERY message for ALL users? (y/n): ").lower()
+        if confirm == 'y':
+            for user in self.users:
+                self.users[user]['inbox'] = []
+            self.save_data()
+            print(f"✅ {COLORS['RED']}ALL SYSTEM MESSAGES HAVE BEEN WIPED.{COLORS['RESET']}")
+        else:
+            print("❌ Action cancelled.")
 
     def view_inbox(self):
         color = self.get_user_color(self.current_user)
@@ -281,7 +315,7 @@ class SecureMessagingSystem:
         while True:
             if self.current_user is None:
                 print("\n=== SECURE MESSENGER ===")
-                print("1. Login (Enter PIN)")
+                print("1. Login")
                 print("2. View Directory")
                 print("3. Exit")
                 choice = input("Select option: ").strip()
@@ -301,7 +335,9 @@ class SecureMessagingSystem:
                 print("2. View ALL Inboxes")
                 print("3. Send Message to User")
                 print("4. Broadcast Message to ALL")
-                print("5. Logout")
+                print("5. Clear a User's Inbox")
+                print("6. Clear ALL Inboxes")
+                print("7. Logout")
                 choice = input("Select option: ").strip()
 
                 if choice == '1':
@@ -314,6 +350,10 @@ class SecureMessagingSystem:
                 elif choice == '4':
                     self.broadcast_message()
                 elif choice == '5':
+                    self.clear_single_inbox()
+                elif choice == '6':
+                    self.clear_all_inboxes()
+                elif choice == '7':
                     self.logout()
                 else:
                     print("Invalid option.")
