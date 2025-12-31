@@ -190,6 +190,19 @@ class SecureMessagingSystem:
                 self.save_data()
                 print("✅ All messages wiped.")
 
+    def reset_game_stats(self):
+        print(f"\n--- {COLORS['RED']}DANGER: RESET LEADERBOARD{COLORS['RESET']} ---")
+        print("This will reset ALL high scores to 0.")
+        print("It will also give EVERY user 5 fresh attempts.")
+        if input("Are you sure? (y/n): ").lower() == 'y':
+            for user in self.users:
+                self.users[user]['high_score'] = 0
+                self.users[user]['games_played'] = 0
+            self.save_data()
+            print("✅ Leaderboard and play counts have been reset.")
+        else:
+            print("❌ Action cancelled.")
+
     def view_inbox(self):
         c = get_user_color(self.current_user)
         print(f"\n--- INBOX FOR {colorize(self.current_user, c)} ---")
@@ -239,7 +252,8 @@ class SecureMessagingSystem:
                 print("5. Clear a User's Inbox")
                 print("6. Clear ALL Inboxes")
                 print("7. View High Scores")
-                print("8. Logout")
+                print("8. Reset Game Data (Scores & Plays)")
+                print("9. Logout")
                 choice = input("Select option: ").strip()
                 if choice == '1': self.print_directory(True); input("Press Enter...")
                 elif choice == '2': self.admin_view_all_inboxes()
@@ -248,7 +262,8 @@ class SecureMessagingSystem:
                 elif choice == '5': self.clear_inboxes("single")
                 elif choice == '6': self.clear_inboxes("all")
                 elif choice == '7': self.admin_view_high_scores()
-                elif choice == '8': self.logout()
+                elif choice == '8': self.reset_game_stats()
+                elif choice == '9': self.logout()
             else:
                 c = get_user_color(self.current_user)
                 games_left = MAX_GAMES - self.users[self.current_user]['games_played']
@@ -262,4 +277,3 @@ class SecureMessagingSystem:
                 elif choice == '2': self.send_message()
                 elif choice == '3': play_code_breaker(self.users[self.current_user], self.save_data)
                 elif choice == '4': self.logout()
-
