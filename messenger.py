@@ -341,10 +341,11 @@ class SecureMessagingSystem:
     def play_code_breaker(self):
         user_data = self.users[self.current_user]
         
-        # Check Limits
-        if user_data['games_played'] >= 3:
+        # Check Limits - UPDATED TO 5
+        MAX_GAMES = 5
+        if user_data['games_played'] >= MAX_GAMES:
             print(f"\n🚫 {COLORS['RED']}MAXIMUM ATTEMPTS REACHED{COLORS['RESET']}")
-            print("You have already played 3 times.")
+            print(f"You have already played {MAX_GAMES} times.")
             print(f"Your High Score: {user_data['high_score']}")
             input("Press Enter to return...")
             return
@@ -360,9 +361,7 @@ class SecureMessagingSystem:
 
         # Generate Secret (4 random digits)
         secret_code = [str(random.randint(0, 9)) for _ in range(4)]
-        # Uncomment below for debugging/cheating
-        # print(f"(Debug: Secret is {secret_code})")
-
+        
         attempts = 0
         max_attempts = 10
         score = 0
@@ -388,7 +387,6 @@ class SecureMessagingSystem:
                 if s == g:
                     exact_matches += 1
                 else:
-                    # Keep non-matches for partial check
                     temp_secret.append(s)
                     temp_guess.append(g)
 
@@ -440,7 +438,8 @@ class SecureMessagingSystem:
             color = self.get_user_color(name)
             score = data['high_score']
             plays = data['games_played']
-            print(f"{i:<4} | {self._colorize(name, color):<35} | {score:<6} | {plays}/3")
+            # Updated display to show out of 5
+            print(f"{i:<4} | {self._colorize(name, color):<35} | {score:<6} | {plays}/5")
         
         input("\nPress Enter to return...")
 
@@ -470,8 +469,8 @@ class SecureMessagingSystem:
                 print("4. Broadcast Message to ALL")
                 print("5. Clear a User's Inbox")
                 print("6. Clear ALL Inboxes")
-                print("7. Logout")
-                print(f"8. {COLORS['YELLOW']}View High Scores{COLORS['RESET']}")
+                print(f"7. View High Scores") # Color Removed
+                print("8. Logout")
                 choice = input("Select option: ").strip()
 
                 if choice == '1':
@@ -488,21 +487,23 @@ class SecureMessagingSystem:
                 elif choice == '6':
                     self.clear_all_inboxes()
                 elif choice == '7':
-                    self.logout()
-                elif choice == '8':
                     self.admin_view_high_scores()
+                elif choice == '8':
+                    self.logout()
                 else:
                     print("Invalid option.")
 
             else:
                 user_color = self.get_user_color(self.current_user)
-                games_left = 3 - self.users[self.current_user]['games_played']
+                # Updated Logic for 5 games
+                MAX_GAMES = 5
+                games_left = MAX_GAMES - self.users[self.current_user]['games_played']
                 
                 print(f"\n=== DASHBOARD: {self._colorize(self.current_user, user_color)} ===")
                 print("1. Read Inbox")
                 print("2. Send Message")
-                print("3. Logout")
-                print(f"4. Play Code Breaker ({games_left} left)")
+                print(f"3. Play Code Breaker ({games_left} left)")
+                print("4. Logout") # Moved to last
                 choice = input("Select option: ").strip()
 
                 if choice == '1':
@@ -510,9 +511,9 @@ class SecureMessagingSystem:
                 elif choice == '2':
                     self.send_message()
                 elif choice == '3':
-                    self.logout()
-                elif choice == '4':
                     self.play_code_breaker()
+                elif choice == '4':
+                    self.logout()
                 else:
                     print("Invalid option.")
 
