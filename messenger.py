@@ -25,31 +25,45 @@ COLORS = {
 # Mapping specific users to colors
 USER_COLORS = {
     "Adair Burgundy": COLORS['RED'],
-    "Piper White": COLORS['WHITE'],
-    "Darby Cerulean": COLORS['BLUE'],
-    "Parson Golden": COLORS['YELLOW'],
     "Alex Jade": COLORS['GREEN'],
+    "Blue Coral": COLORS['BRIGHT_RED'],
     "Cricket Pewter": COLORS['GREY'],
+    "Darby Cerulean": COLORS['BLUE'],
+    "Dracen Gray": COLORS['GREY'],
     "Greenlee Black": COLORS['GREY'], 
-    "Winter Olive": COLORS['YELLOW'],
-    "Rigny Cyan": COLORS['CYAN'],
     "Jude Plum": COLORS['MAGENTA'],
+    "Lee Mint": COLORS['CYAN'],
+    "Parson Golden": COLORS['YELLOW'],
+    "Piper White": COLORS['WHITE'],
+    "Ren Peach": COLORS['BRIGHT_RED'],
+    "Rigny Cyan": COLORS['CYAN'],
+    "Shan Lemon": COLORS['BRIGHT_YELLOW'],
     "Story Indigo": COLORS['BLUE'],
     "Waverly Scarlet": COLORS['RED'],
-    "Shan Lemon": COLORS['BRIGHT_YELLOW'],
-    "Ren Peach": COLORS['BRIGHT_RED'],
-    "Blue Coral": COLORS['BRIGHT_RED'],
-    "Lee Mint": COLORS['CYAN'],
-    "Dracen Gray": COLORS['GREY'],
-    "Whitney Whatley": COLORS['WHITE']
+    "Whitney Whatley": COLORS['WHITE'],
+    "Winter Olive": COLORS['YELLOW']
 }
 
+# The List: Alphabetized by First Name
 USER_ORDER = [
-    "Adair Burgundy", "Piper White", "Darby Cerulean", "Parson Golden",
-    "Alex Jade", "Cricket Pewter", "Greenlee Black", "Winter Olive",
-    "Rigny Cyan", "Jude Plum", "Story Indigo", "Waverly Scarlet",
-    "Shan Lemon", "Ren Peach", "Blue Coral", "Lee Mint",
-    "Dracen Gray", "Whitney Whatley"
+    "Adair Burgundy",
+    "Alex Jade",
+    "Blue Coral",
+    "Cricket Pewter",
+    "Darby Cerulean",
+    "Dracen Gray",
+    "Greenlee Black",
+    "Jude Plum",
+    "Lee Mint",
+    "Parson Golden",
+    "Piper White",
+    "Ren Peach",
+    "Rigny Cyan",
+    "Shan Lemon",
+    "Story Indigo",
+    "Waverly Scarlet",
+    "Whitney Whatley",
+    "Winter Olive"
 ]
 
 class SecureMessagingSystem:
@@ -317,7 +331,7 @@ class SecureMessagingSystem:
                 print("\n=== SECURE MESSENGER ===")
                 print("1. Login")
                 print("2. View Directory")
-                # EXIT OPTION REMOVED
+                # Exit Removed
                 choice = input("Select option: ").strip()
 
                 if choice == '1':
