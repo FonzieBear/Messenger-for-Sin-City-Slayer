@@ -81,7 +81,6 @@ class SecureMessagingSystem:
         except Exception:
             self.master_pin = input("Enter MASTER PIN (Warning: Visible): ").strip()
 
-        # IMMEDIATELY clear screen
         self._clear_screen()
         
         if not self.master_pin:
@@ -129,10 +128,21 @@ class SecureMessagingSystem:
             json_str = self._xor_cipher(encrypted_str, self.master_pin)
             self.users = json.loads(json_str)
             
-            # Ensure hardcoded users exist
+            # Ensure hardcoded users exist AND have game data
             for name in USER_ORDER:
                 if name not in self.users:
-                    self.users[name] = {'pin': f"{random.randint(0, 9999):04d}", 'inbox': []}
+                    self.users[name] = {
+                        'pin': f"{random.randint(0, 9999):04d}", 
+                        'inbox': [],
+                        'games_played': 0,
+                        'high_score': 0
+                    }
+                else:
+                    # Migration: Add game fields to existing users if missing
+                    if 'games_played' not in self.users[name]:
+                        self.users[name]['games_played'] = 0
+                    if 'high_score' not in self.users[name]:
+                        self.users[name]['high_score'] = 0
             
             print("✅ Access Granted.")
             return True
@@ -153,7 +163,9 @@ class SecureMessagingSystem:
             
             self.users[name] = {
                 'pin': pin,
-                'inbox': []
+                'inbox': [],
+                'games_played': 0,
+                'high_score': 0
             }
             
             color = self.get_user_color(name)
@@ -312,7 +324,6 @@ class SecureMessagingSystem:
 
     def admin_view_all_inboxes(self):
         print(f"\n--- GLOBAL INBOX VIEWER ---")
-        
         for name in USER_ORDER:
             inbox = self.users[name]['inbox']
             color = self.get_user_color(name)
@@ -322,16 +333,126 @@ class SecureMessagingSystem:
             else:
                 for msg in inbox:
                     print(f"  {msg}")
-        
         input("\nPress Enter to return to menu...")
 
+    # ==========================
+    #  GAME LOGIC: CODE BREAKER
+    # ==========================
+    def play_code_breaker(self):
+        user_data = self.users[self.current_user]
+        
+        # Check Limits
+        if user_data['games_played'] >= 3:
+            print(f"\n🚫 {COLORS['RED']}MAXIMUM ATTEMPTS REACHED{COLORS['RESET']}")
+            print("You have already played 3 times.")
+            print(f"Your High Score: {user_data['high_score']}")
+            input("Press Enter to return...")
+            return
+
+        self._clear_screen()
+        print(f"\n=== 🕵️‍♂️ {COLORS['CYAN']}CODE BREAKER MINIGAME{COLORS['RESET']} ===")
+        print("Deduce the secret 4-digit code (0-9).")
+        print("Feedback Legend:")
+        print(f"  - {COLORS['GREEN']}Exact Match{COLORS['RESET']}: Correct number, Correct spot.")
+        print(f"  - {COLORS['YELLOW']}Partial Match{COLORS['RESET']}: Correct number, Wrong spot.")
+        print("\nAttempts Allowed: 10")
+        input("Press Enter to START...")
+
+        # Generate Secret (4 random digits)
+        secret_code = [str(random.randint(0, 9)) for _ in range(4)]
+        # Uncomment below for debugging/cheating
+        # print(f"(Debug: Secret is {secret_code})")
+
+        attempts = 0
+        max_attempts = 10
+        score = 0
+        
+        while attempts < max_attempts:
+            print(f"\nAttempt {attempts + 1}/{max_attempts}")
+            guess_str = input("Enter 4 digits: ").strip()
+
+            # Validation
+            if len(guess_str) != 4 or not guess_str.isdigit():
+                print("⚠️ Invalid input. Must be exactly 4 digits.")
+                continue
+
+            attempts += 1
+            guess = list(guess_str)
+
+            # Calculate Exact Matches (Bulls)
+            exact_matches = 0
+            temp_secret = []
+            temp_guess = []
+
+            for s, g in zip(secret_code, guess):
+                if s == g:
+                    exact_matches += 1
+                else:
+                    # Keep non-matches for partial check
+                    temp_secret.append(s)
+                    temp_guess.append(g)
+
+            # Calculate Partial Matches (Cows)
+            partial_matches = 0
+            for g in temp_guess:
+                if g in temp_secret:
+                    partial_matches += 1
+                    temp_secret.remove(g)  # Remove to prevent double counting
+
+            # Display Feedback
+            print(f"   Feedback: {COLORS['GREEN']}{exact_matches} Exact{COLORS['RESET']} | {COLORS['YELLOW']}{partial_matches} Partial{COLORS['RESET']}")
+
+            # Win Condition
+            if exact_matches == 4:
+                score = (11 - attempts) * 100
+                print(f"\n🎉 {COLORS['GREEN']}CODE BROKEN!{COLORS['RESET']}")
+                print(f"You solved it in {attempts} attempts.")
+                print(f"Score: {score}")
+                break
+        else:
+            print(f"\n☠️ {COLORS['RED']}MISSION FAILED{COLORS['RESET']}")
+            print(f"The code was: {''.join(secret_code)}")
+            score = 0
+
+        # Save Results
+        user_data['games_played'] += 1
+        if score > user_data['high_score']:
+            user_data['high_score'] = score
+            print(f"🏆 {COLORS['YELLOW']}NEW HIGH SCORE!{COLORS['RESET']}")
+        
+        self.save_data()
+        input("\nPress Enter to return...")
+
+    def admin_view_high_scores(self):
+        print(f"\n--- 🏆 HIGH SCORE LEADERBOARD ---")
+        
+        # Sort users by high score (descending)
+        ranked_users = sorted(
+            self.users.items(), 
+            key=lambda x: x[1]['high_score'], 
+            reverse=True
+        )
+
+        print(f"{'RANK':<4} | {'USER':<25} | {'SCORE':<6} | {'PLAYS':<5}")
+        print("-" * 50)
+        
+        for i, (name, data) in enumerate(ranked_users, 1):
+            color = self.get_user_color(name)
+            score = data['high_score']
+            plays = data['games_played']
+            print(f"{i:<4} | {self._colorize(name, color):<35} | {score:<6} | {plays}/3")
+        
+        input("\nPress Enter to return...")
+
+    # ==========================
+    #       MAIN LOOPS
+    # ==========================
     def run(self):
         while True:
             if self.current_user is None:
                 print("\n=== SECURE MESSENGER ===")
                 print("1. Login")
                 print("2. View Directory")
-                # Exit Removed
                 choice = input("Select option: ").strip()
 
                 if choice == '1':
@@ -350,6 +471,7 @@ class SecureMessagingSystem:
                 print("5. Clear a User's Inbox")
                 print("6. Clear ALL Inboxes")
                 print("7. Logout")
+                print(f"8. {COLORS['YELLOW']}View High Scores{COLORS['RESET']}")
                 choice = input("Select option: ").strip()
 
                 if choice == '1':
@@ -367,15 +489,20 @@ class SecureMessagingSystem:
                     self.clear_all_inboxes()
                 elif choice == '7':
                     self.logout()
+                elif choice == '8':
+                    self.admin_view_high_scores()
                 else:
                     print("Invalid option.")
 
             else:
                 user_color = self.get_user_color(self.current_user)
+                games_left = 3 - self.users[self.current_user]['games_played']
+                
                 print(f"\n=== DASHBOARD: {self._colorize(self.current_user, user_color)} ===")
                 print("1. Read Inbox")
                 print("2. Send Message")
                 print("3. Logout")
+                print(f"4. Play Code Breaker ({games_left} left)")
                 choice = input("Select option: ").strip()
 
                 if choice == '1':
@@ -384,6 +511,8 @@ class SecureMessagingSystem:
                     self.send_message()
                 elif choice == '3':
                     self.logout()
+                elif choice == '4':
+                    self.play_code_breaker()
                 else:
                     print("Invalid option.")
 
